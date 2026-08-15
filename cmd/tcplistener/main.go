@@ -4,19 +4,20 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
+	"net"
 	"strings"
 )
 
-func getLinesChannel(f io.ReadCloser) <-chan string {
+// source could be file, could be tcp connection, etc
+func getLinesChannel(source io.ReadCloser) <-chan string {
 	var lineChan = make(chan string)
 	go func() {
 		defer close(lineChan)
-		defer f.Close()
+		defer source.Close()
 		currentline := strings.Builder{}
 		buffer := make([]byte, 8)
 		for {
-			n, err := f.Read(buffer)
+			n, err := source.Read(buffer)
 			if err != nil && err == io.EOF {
 				// TODO: handle error when read in half way
 				break
@@ -27,7 +28,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 			// for last element, append to current line if exist, later to be combined with first part later
 			// other than that always print
 			for i := 0; i < len(parts)-1; i++ {
-				lineChan <- fmt.Sprintf("read: %s%s", currentline.String(), parts[i])
+				lineChan <- fmt.Sprintf("%s%s", currentline.String(), parts[i])
 				currentline.Reset()
 			}
 			_, err = currentline.Write(parts[len(parts)-1])
@@ -41,14 +42,23 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 }
 
 func main() {
-	inputFilePath := "messages.txt"
-	f, err := os.Open(inputFilePath)
+	listener, err := net.Listen("tcp", ":42069")
+	panicIfErr(err)
+	defer listener.Close()
+
+	for {
+		conn, err := listener.Accept()
+		panicIfErr(err)
+		fmt.Println("connection accepted")
+		for currentline := range getLinesChannel(conn) {
+			fmt.Print(currentline)
+		}
+	}
+
+}
+
+func panicIfErr(err error) {
 	if err != nil {
 		panic(err)
-	}
-	defer f.Close()
-
-	for currentline := range getLinesChannel(f) {
-		fmt.Printf("read: %s\n", currentline)
 	}
 }
