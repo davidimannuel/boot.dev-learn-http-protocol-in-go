@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/davidimannuel/boot.dev-learn-http-protocol-in-go/internal/headers"
 )
 
 var (
@@ -13,13 +15,15 @@ var (
 )
 
 const (
-	ParserStateInitialized = iota
+	ParserStateInitialized    = iota
+	ParserStateParsingHeaders = iota
 	ParserStateDone
 )
 
 type Request struct {
 	ParserState int
 	RequestLine RequestLine
+	Headers     headers.Headers
 }
 
 type RequestLine struct {
@@ -36,12 +40,19 @@ func (r *Request) ParserDone() {
 	r.ParserState = ParserStateDone
 }
 
+func (r *Request) ParsingHeaders() {
+	r.ParserState = ParserStateParsingHeaders
+}
+
 var crlf = []byte("\r\n")
 
 const bufferSize = 8
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	req := &Request{ParserState: ParserStateInitialized}
+	req := &Request{
+		ParserState: ParserStateInitialized,
+		Headers:     headers.NewHeaders(),
+	}
 	buf := make([]byte, bufferSize) // buffer
 	readToIndex := 0
 
@@ -54,6 +65,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 		// put data start from readToIndex
+
 		nRead, err := reader.Read(buf[readToIndex:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -91,13 +103,25 @@ func (r *Request) parse(data []byte) (int, error) {
 		}
 		nParser += n
 		r.RequestLine = *rl
-		r.ParserDone()
+		r.ParsingHeaders()
 
+	case ParserStateParsingHeaders:
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 { // no message process
+			return 0, nil
+		}
+		nParser += n
+		if done {
+			r.ParserDone()
+		}
 	default:
 		return 0, fmt.Errorf("error: unknown state")
 	}
 
-	return 0, nil
+	return nParser, nil
 }
 
 func parseRequestLine(b []byte) (*RequestLine, int, error) {
