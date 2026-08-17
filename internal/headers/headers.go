@@ -23,6 +23,21 @@ func (h Headers) Get(k string) (string, bool) {
 	return val, exist
 }
 
+func (h Headers) Set(k string, v string) {
+	k = strings.ToLower(k) // make all header to lower case
+	val, exist := h[k]
+	if !exist {
+		h[k] = v
+	} else {
+		h[k] = fmt.Sprintf("%s, %s", val, v)
+	}
+}
+
+func (h Headers) Override(key, value string) {
+	key = strings.ToLower(key)
+	h[key] = value
+}
+
 func NewHeaders() Headers {
 	return make(Headers)
 }
@@ -81,13 +96,7 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		if err != nil {
 			return 0, false, err
 		}
-		k = strings.ToLower(k) // make all header to lower case
 		read += idx + len(crlf)
-		_, exist := h[k]
-		if !exist {
-			h[k] = v
-		} else {
-			h[k] = fmt.Sprintf("%s, %s", h[k], v)
-		}
+		h.Set(k, v)
 	}
 }
