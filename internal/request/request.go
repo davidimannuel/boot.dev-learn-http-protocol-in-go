@@ -5,18 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/davidimannuel/boot.dev-learn-http-protocol-in-go/internal/headers"
 )
 
 var (
-	ErrInvalidFormat = errors.New("invalid format")
+	ErrInvalidFormat  = errors.New("invalid format")
+	ErrIncompleteBody = errors.New("incomplete request body: content-length exceeds actual content")
 )
 
 const (
-	ParserStateInitialized    = iota
-	ParserStateParsingHeaders = iota
+	ParserStateInitialized = iota
+	ParserStateParsingHeaders
+	ParserStateParsingBody
 	ParserStateDone
 )
 
@@ -24,6 +27,7 @@ type Request struct {
 	ParserState int
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 }
 
 type RequestLine struct {
@@ -42,6 +46,28 @@ func (r *Request) ParserDone() {
 
 func (r *Request) ParsingHeaders() {
 	r.ParserState = ParserStateParsingHeaders
+}
+
+func (r *Request) ParsingBody() {
+	r.ParserState = ParserStateParsingBody
+}
+
+func (r *Request) ContentLength() int {
+	if r.Headers == nil {
+		return 0
+	}
+
+	val, _ := r.Headers.Get("Content-Length")
+	valInt, err := strconv.Atoi(val)
+	if err != nil {
+		return 0
+	}
+
+	return valInt
+}
+
+func (r *Request) ContentExists() bool {
+	return r.ContentLength() > 0
 }
 
 var crlf = []byte("\r\n")
@@ -69,7 +95,12 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		nRead, err := reader.Read(buf[readToIndex:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				req.ParserDone()
+				// the loop only keeps reading while the parser isn't done,
+				// so hitting EOF here means the request was cut off mid-parse
+				if req.ParserState == ParserStateParsingBody {
+					return req, ErrIncompleteBody
+				}
+				return req, io.ErrUnexpectedEOF
 			}
 			return req, err
 		}
@@ -88,7 +119,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 func (r *Request) parse(data []byte) (int, error) {
 	nParser := 0
-
 	switch r.ParserState {
 	case ParserStateDone:
 		return 0, fmt.Errorf("error: trying to read data in a done state")
@@ -115,8 +145,22 @@ func (r *Request) parse(data []byte) (int, error) {
 		}
 		nParser += n
 		if done {
-			r.ParserDone()
+			// if content exists continue to parsing the body
+			if r.ContentExists() {
+				r.ParsingBody()
+			} else { // if no content length move to done
+				r.ParserDone()
+			}
 		}
+
+	case ParserStateParsingBody:
+		contentLength := r.ContentLength()
+		if len(data) < contentLength { // body isn't complete yet
+			return 0, nil
+		}
+		r.Body = append(r.Body, data[:contentLength]...) // copy body
+		nParser = contentLength
+		r.ParserDone()
 	default:
 		return 0, fmt.Errorf("error: unknown state")
 	}

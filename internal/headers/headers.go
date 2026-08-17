@@ -16,6 +16,13 @@ var (
 
 type Headers map[string]string
 
+func (h Headers) Get(k string) (string, bool) {
+	k = strings.ToLower(k)
+	val, exist := h[k]
+
+	return val, exist
+}
+
 func NewHeaders() Headers {
 	return make(Headers)
 }
