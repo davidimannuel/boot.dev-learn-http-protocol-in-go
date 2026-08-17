@@ -35,14 +35,6 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
-func GetDefaultHeadersHTML(contentLen int) headers.Headers {
-	h := headers.NewHeaders()
-	h.Set("Content-Length", fmt.Sprintf("%d", contentLen))
-	h.Set("Connection", "close")
-	h.Set("Content-Type", "text/html")
-	return h
-}
-
 func WriteHeaders(w io.Writer, headers headers.Headers) error {
 	for h, k := range headers {
 		fieldLine := fmt.Sprintf("%s: %s\r\n", h, k)

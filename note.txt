@@ -1,0 +1,24 @@
+# HTTP RFC
+To understand HTTP it may behoove you to become familiar with the RFCs ("requests for comment"). At the moment, there are several key RFCs for HTTP/1.1:
+
+RFC 7231 (https://datatracker.ietf.org/doc/html/rfc7231) – Widely referenced, but obsoleted by RFC 9110.
+RFC 9112 (https://datatracker.ietf.org/doc/html/rfc9112) – Easier to read than RFC 7231, relies on understanding from RFC 9110.
+RFC 9110 (https://datatracker.ietf.org/doc/html/rfc9110) – Covers HTTP "semantics."
+RFC 2616 (https://datatracker.ietf.org/doc/html/rfc2616) – Deprecated by RFC 7231.
+We will be referring to 9110 and 9112 as they have better separation of information. 7231 can be a bit verbose whereas 9112 is much more to the point, but makes a lot of assumptions that you understand a decent amount of 9110.
+
+# testing HTTP stuff
+httpbingo.org (https://httpbingo.org/) service: a wonderful online tool for testing HTTP stuff.
+
+
+# OTHER
+HTTP/2
+Some key differences include:
+- It's a binary protocol rather than text-based. This makes it more efficient and less error-prone, but also requires more steps to debug, typically.
+- HTTP/2 uses multiplexing, which allows multiple requests and responses to be sent over a single connection at the same time. This reduces latency and improves performance.
+- Uses header compression to save on header bandwidth.
+- Allows for server push, which lets the server send resources to the client before they are requested.
+
+HTTP/3
+- Built on QUIC instead of TCP. QUIC is a transport layer protocol that runs over UDP, which allows for faster connection establishment and improved performance.
+- Mandates encryption at the HTTP protocol level (HTTP/1.1 is unencrypted by default, meaning it requires HTTPS to be secure).
