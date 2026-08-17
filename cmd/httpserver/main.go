@@ -67,7 +67,7 @@ func handler400(w *response.Writer, _ *request.Request) {
 }
 
 func handler500(w *response.Writer, _ *request.Request) {
-	w.WriteStatusLine(response.StatusCodeInternalServerError)
+	w.WriteStatusLine(response.StatusCodeInternalServerErr)
 	body := []byte(`<html>
 <head>
 <title>500 Internal Server Error</title>
